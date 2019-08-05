@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.IO;
 
 /* This program is not done, and really just decreases FPS. It's kinda like an ugly barely working needed admin privilages task manager, which will be switched later
  The basic code is down, and if you spend 10 minutes you could make it an effective fps booster
@@ -27,12 +28,16 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
         private void Form1_Load(object sender, EventArgs e)
         {
             listBox1.Sorted = true; // alphabetically sorts listbox
+            listBox2.Sorted = true;
+            
         }
 
         private void Button1_Click(object sender, EventArgs e)
         {
+            listBox1.Items.Clear();
             foreach (Process p in pArry) // for each, in array - pretty straight foward.
             {
+               
                 string s = p.ProcessName; // gets process name, and sets to string
                 s = s.ToLower(); // lowercases processname
                 listBox1.Items.Add(p.ProcessName); // adds process name to list, need to change this to a list checkbox
@@ -48,19 +53,19 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
                 proc.Kill(); // kills process
                 proc.Dispose(); // disposes process
                 listBox1.Items.RemoveAt(indx); //removes selected process from list, after it has been killed and disposed of
+            } else if (proc.HasExited == true)
+            {
+                listBox1.Items.RemoveAt(indx);
+            }
+            else
+            {
+                MessageBox.Show("Error 100 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void TextBox1_KeyPress(object sender, KeyPressEventArgs e) // search bar, will change from textbox1 later.
         {
-            listBox1.SelectedItems.Clear();  // clears list, only shows items with searched letter
-            for (int i = listBox1.Items.Count -1; i >= 0;i--) 
-            {
-                if (listBox1.Items[i].ToString().ToLower().Contains(textBox1.Text)) // does so many things, but mainly adds the searched items back to he list
-                {
-                    listBox1.SetSelected(i, true);
-                }
-            }
+          
         }
 
         private void Button3_Click(object sender, EventArgs e)
@@ -77,12 +82,26 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
         private void Button5_Click(object sender, EventArgs e) // kills all processes
         {
             string itemname = "";
+            
             foreach (var item in listBox2.Items)
             {
                 itemname = item.ToString();
                 foreach (var process in Process.GetProcessesByName(itemname))
                 {
-                    process.Kill();
+                    if (process.HasExited == false)
+                    {
+                        process.Kill();
+                        process.Dispose();
+                        listBox1.Items.Remove(itemname);
+                         
+                    } else if (process.HasExited == true)
+                    {
+                        
+                    } else
+                    {
+                        MessageBox.Show("Error 101 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                   
                 }
             }
         }
@@ -95,7 +114,22 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
                 itemname = item.ToString();
                 foreach (var process in Process.GetProcessesByName(itemname))
                 {
-                    process.Kill();
+                    if (process.HasExited == false)
+                    {
+                        process.Kill();
+                        process.Dispose();
+                    }
+                    else if (process.HasExited == true)
+                    {
+                        
+                    }
+                    else
+                    {
+                        MessageBox.Show("Error 102 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+
+
+                    
                 }
             }
         }
@@ -110,6 +144,63 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
             } else if (killon == false)
             {
                 timer1.Stop();
+            }
+        }
+
+        private void Button7_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog saveFile = new SaveFileDialog();
+            saveFile.Filter = "Text (*.txt)|*.txt";
+            if (saveFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                using (var sw = new StreamWriter(saveFile.FileName, false))
+                    foreach (var item in listBox2.Items)
+                        sw.Write(item.ToString() + Environment.NewLine);
+                MessageBox.Show("Success");
+            }
+        }
+
+        private void Button8_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog openFile = new OpenFileDialog();
+            openFile.Filter = "Text (*.txt)|*.txt";
+            if (openFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                List<string> lines = new List<string>();
+                using (var sr = new StreamReader(openFile.FileName, false))
+                {
+                    string line;
+                    while ((line = sr.ReadLine()) != null)
+                    {
+                        listBox2.Items.Add(line);
+                    }
+                }
+            }
+        }
+
+        private void TextBox2_TextChanged(object sender, EventArgs e)
+        {
+            listBox2.SelectedItems.Clear();  // clears list, only shows items with searched letter
+            for (int i = listBox2.Items.Count - 1; i >= 0; i--)
+            {
+                if (listBox2.Items[i].ToString().ToLower().Contains(textBox2.Text)) // does so many things, but mainly adds the searched items back to he list
+                {
+                    listBox2.Sorted = true;
+                    listBox2.SetSelected(i, true);
+                }
+            }
+        }
+
+        private void TextBox1_TextChanged(object sender, EventArgs e)
+        {
+            listBox1.SelectedItems.Clear();  // clears list, only shows items with searched letter
+            for (int i = listBox1.Items.Count - 1; i >= 0; i--)
+            {
+                if (listBox1.Items[i].ToString().ToLower().Contains(textBox1.Text)) // does so many things, but mainly adds the searched items back to he list
+                {
+                    listBox1.Sorted = true;
+                    listBox1.SetSelected(i, true);
+                }
             }
         }
     }
