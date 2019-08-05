@@ -10,12 +10,11 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
 
-/* This program is not done, and really just decreases FPS. It's kinda like an ugly barely working needed admin privilages task manager, which will be switched later
- The basic code is down, and if you spend 10 minutes you could make it an effective fps booster
- be warned, this could crash your computer as some really shitty coding practices have taken place, out of pure lazyness. you have been warned.
+/* Needs work
+ * You've been warned.
  */
 
-namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast for now.
+namespace FPS_Booster
 {
     public partial class Form1 : Form
     {
@@ -106,7 +105,7 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
             }
         }
 
-        private void Timer1_Tick(object sender, EventArgs e) // kills all processes, but its on a timer
+        private void Timer1_Tick(object sender, EventArgs e) // kills all processes, but its on a timer ( 1 minute )
         {
             string itemname = "";
             foreach (var item in listBox2.Items)
@@ -147,7 +146,7 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
             }
         }
 
-        private void Button7_Click(object sender, EventArgs e)
+        private void Button7_Click(object sender, EventArgs e) // Save file
         {
             SaveFileDialog saveFile = new SaveFileDialog();
             saveFile.Filter = "Text (*.txt)|*.txt";
@@ -160,7 +159,7 @@ namespace FPS_Booster // False name, Computer_Crasher would be better. Atleast f
             }
         }
 
-        private void Button8_Click(object sender, EventArgs e)
+        private void Button8_Click(object sender, EventArgs e) // open file
         {
             OpenFileDialog openFile = new OpenFileDialog();
             openFile.Filter = "Text (*.txt)|*.txt";
