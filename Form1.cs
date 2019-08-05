@@ -19,32 +19,39 @@ namespace FPS_Booster
     public partial class Form1 : Form
     {
         bool killon = false;
-        Process[] pArry = Process.GetProcesses(); // creates process array
         public Form1()
         {
             InitializeComponent();
         }
         private void Form1_Load(object sender, EventArgs e)
         {
+            Process[] pArry = Process.GetProcesses();
             listBox1.Sorted = true; // alphabetically sorts listbox
             listBox2.Sorted = true;
-            
+
+            foreach (Process p in pArry) // for each, in array - pretty straight foward.
+            {
+                string s = p.ProcessName; // gets process name, and sets to string
+                s = s.ToLower(); // lowercases processname
+                listBox1.Items.Add(p.ProcessName + " | " + p.Id + " | Responding: " + p.Responding); // adds process name to list
+            }
         }
 
         private void Button1_Click(object sender, EventArgs e)
         {
+            Process[] pArry = Process.GetProcesses();
             listBox1.Items.Clear();
             foreach (Process p in pArry) // for each, in array - pretty straight foward.
             {
-               
                 string s = p.ProcessName; // gets process name, and sets to string
                 s = s.ToLower(); // lowercases processname
-                listBox1.Items.Add(p.ProcessName); // adds process name to list, need to change this to a list checkbox
-            }
+                listBox1.Items.Add(p.ProcessName + " | " + p.Id + " | Responding: " + p.Responding); // adds process name to list
+            } 
         }
 
         private void Button2_Click(object sender, EventArgs e)
         {
+            Process[] pArry = Process.GetProcesses();
             int indx = listBox1.SelectedIndex; // gets selected item
             Process proc = pArry[indx]; // selected index is now equal to a process index
             if (proc.HasExited == false) // checks if process has exited
@@ -54,7 +61,7 @@ namespace FPS_Booster
                 listBox1.Items.RemoveAt(indx); //removes selected process from list, after it has been killed and disposed of
             } else if (proc.HasExited == true)
             {
-                listBox1.Items.RemoveAt(indx);
+               
             }
             else
             {
@@ -85,17 +92,18 @@ namespace FPS_Booster
             foreach (var item in listBox2.Items)
             {
                 itemname = item.ToString();
+                string itemslower = itemname.ToLower();
                 foreach (var process in Process.GetProcessesByName(itemname))
                 {
                     if (process.HasExited == false)
                     {
                         process.Kill();
                         process.Dispose();
-                        listBox1.Items.Remove(itemname);
+                        listBox1.Items.Remove(itemslower);
                          
                     } else if (process.HasExited == true)
                     {
-                        
+                        listBox1.Items.Remove(itemslower);
                     } else
                     {
                         MessageBox.Show("Error 101 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
