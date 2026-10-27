@@ -1,183 +1,176 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Diagnostics;
 using System.IO;
-
-/* Needs work
- * You've been warned.
- */
+using System.Linq;
+using System.Windows.Forms;
 
 namespace FPS_Booster
 {
     public partial class Form1 : Form
     {
-        bool killon = false;
+        private const string ListFilter = "Text (*.txt)|*.txt";
+
         public Form1()
         {
             InitializeComponent();
         }
+
         private void Form1_Load(object sender, EventArgs e)
         {
-            Process[] pArry = Process.GetProcesses();
-            listBox1.Sorted = true; // alphabetically sorts listbox
+            listBox1.Sorted = true;
             listBox2.Sorted = true;
-
-            foreach (Process p in pArry) // for each, in array - pretty straight foward.
-            {
-                string s = p.ProcessName; // gets process name, and sets to string
-                s = s.ToLower(); // lowercases processname
-                listBox1.Items.Add(p.ProcessName + " | " + p.Id + " | Responding: " + p.Responding); // adds process name to list
-            }
+            RefreshProcessList();
         }
 
-        private void Button1_Click(object sender, EventArgs e)
+        // Process list
+
+        private void RefreshProcessList()
         {
-            Process[] pArry = Process.GetProcesses();
+            listBox1.BeginUpdate();
             listBox1.Items.Clear();
-            foreach (Process p in pArry) // for each, in array - pretty straight foward.
+            foreach (Process p in Process.GetProcesses())
             {
-                string s = p.ProcessName; // gets process name, and sets to string
-                s = s.ToLower(); // lowercases processname
-                listBox1.Items.Add(p.ProcessName + " | " + p.Id + " | Responding: " + p.Responding); // adds process name to list
-            } 
-        }
-
-        private void Button2_Click(object sender, EventArgs e)
-        {
-            Process[] pArry = Process.GetProcesses();
-            int indx = listBox1.SelectedIndex; // gets selected item
-            Process proc = pArry[indx]; // selected index is now equal to a process index
-            if (proc.HasExited == false) // checks if process has exited
-            {
-                proc.Kill(); // kills process
-                proc.Dispose(); // disposes process
-                listBox1.Items.RemoveAt(indx); //removes selected process from list, after it has been killed and disposed of
-            } else if (proc.HasExited == true)
-            {
-               
+                listBox1.Items.Add(p.ProcessName + " | " + p.Id + " | Responding: " + p.Responding);
+                p.Dispose();
             }
-            else
+            listBox1.EndUpdate();
+        }
+
+        // Entries look like "name | pid | Responding: x"; the pid is the middle field.
+        private static bool TryGetPid(object item, out int pid)
+        {
+            pid = 0;
+            string[] parts = (item == null ? "" : item.ToString()).Split('|');
+            return parts.Length >= 2 && int.TryParse(parts[1].Trim(), out pid);
+        }
+
+        private static void KillProcess(Process process)
+        {
+            try
             {
-                MessageBox.Show("Error 100 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void TextBox1_KeyPress(object sender, KeyPressEventArgs e) // search bar, will change from textbox1 later.
-        {
-          
-        }
-
-        private void Button3_Click(object sender, EventArgs e)
-        {
-            listBox2.Items.Add(listBox1.SelectedItem); // adds item to listbox2, no actual  saving function yet
-        }
-
-        private void Button4_Click(object sender, EventArgs e) // remove function for listbox2
-        {
-            int indx = listBox2.SelectedIndex; 
-            listBox2.Items.RemoveAt(indx);
-        }
-
-        private void Button5_Click(object sender, EventArgs e) // kills all processes
-        {
-            string itemname = "";
-            
-            foreach (var item in listBox2.Items)
-            {
-                itemname = item.ToString();
-                string itemslower = itemname.ToLower();
-                foreach (var process in Process.GetProcessesByName(itemname))
+                if (!process.HasExited)
                 {
-                    if (process.HasExited == false)
-                    {
-                        process.Kill();
-                        process.Dispose();
-                        listBox1.Items.Remove(itemslower);
-                         
-                    } else if (process.HasExited == true)
-                    {
-                        listBox1.Items.Remove(itemslower);
-                    } else
-                    {
-                        MessageBox.Show("Error 101 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                   
+                    process.Kill();
+                }
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is System.ComponentModel.Win32Exception)
+            {
+                // Already gone, or protected (access denied); nothing more to do.
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        private void KillBlacklistedProcesses()
+        {
+            foreach (object item in listBox2.Items)
+            {
+                foreach (Process process in Process.GetProcessesByName(item.ToString()))
+                {
+                    KillProcess(process);
                 }
             }
         }
 
-        private void Timer1_Tick(object sender, EventArgs e) // kills all processes, but its on a timer ( 1 minute )
+        // Handlers
+
+        private void Button1_Click(object sender, EventArgs e) // refresh
         {
-            string itemname = "";
-            foreach (var item in listBox2.Items)
+            RefreshProcessList();
+        }
+
+        private void Button2_Click(object sender, EventArgs e) // kill selected process
+        {
+            int pid;
+            if (!TryGetPid(listBox1.SelectedItem, out pid))
             {
-                itemname = item.ToString();
-                foreach (var process in Process.GetProcessesByName(itemname))
+                return;
+            }
+
+            try
+            {
+                KillProcess(Process.GetProcessById(pid));
+            }
+            catch (ArgumentException)
+            {
+                // Process exited since the list was built.
+            }
+            listBox1.Items.Remove(listBox1.SelectedItem);
+        }
+
+        private void TextBox1_KeyPress(object sender, KeyPressEventArgs e)
+        {
+        }
+
+        private void Button3_Click(object sender, EventArgs e) // add selected process to the kill list
+        {
+            string item = listBox1.SelectedItem as string;
+            if (item == null)
+            {
+                return;
+            }
+
+            // The kill list stores the bare process name, which is what GetProcessesByName expects.
+            string name = item.Split('|')[0].Trim();
+            if (!listBox2.Items.Contains(name))
+            {
+                listBox2.Items.Add(name);
+            }
+        }
+
+        private void Button4_Click(object sender, EventArgs e) // remove from the kill list
+        {
+            if (listBox2.SelectedIndex >= 0)
+            {
+                listBox2.Items.RemoveAt(listBox2.SelectedIndex);
+            }
+        }
+
+        private void Button5_Click(object sender, EventArgs e) // kill everything on the kill list
+        {
+            KillBlacklistedProcesses();
+            RefreshProcessList();
+        }
+
+        private void Timer1_Tick(object sender, EventArgs e) // same as button 5, on a timer
+        {
+            KillBlacklistedProcesses();
+        }
+
+        private void Button6_Click(object sender, EventArgs e) // toggle the timer
+        {
+            timer1.Enabled = !timer1.Enabled;
+        }
+
+        private void Button7_Click(object sender, EventArgs e) // save kill list
+        {
+            using (var dialog = new SaveFileDialog { Filter = ListFilter })
+            {
+                if (dialog.ShowDialog() != DialogResult.OK)
                 {
-                    if (process.HasExited == false)
-                    {
-                        process.Kill();
-                        process.Dispose();
-                    }
-                    else if (process.HasExited == true)
-                    {
-                        
-                    }
-                    else
-                    {
-                        MessageBox.Show("Error 102 - Message this error code to the developer", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-
-
-                    
+                    return;
                 }
-            }
-        }
 
-        private void Button6_Click(object sender, EventArgs e) // enables and disables timer1.
-        {
-            killon = !killon;
-
-            if (killon == true)
-            {
-                timer1.Start();
-            } else if (killon == false)
-            {
-                timer1.Stop();
-            }
-        }
-
-        private void Button7_Click(object sender, EventArgs e) // Save file
-        {
-            SaveFileDialog saveFile = new SaveFileDialog();
-            saveFile.Filter = "Text (*.txt)|*.txt";
-            if (saveFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                using (var sw = new StreamWriter(saveFile.FileName, false))
-                    foreach (var item in listBox2.Items)
-                        sw.Write(item.ToString() + Environment.NewLine);
+                File.WriteAllLines(dialog.FileName, listBox2.Items.Cast<object>().Select(i => i.ToString()));
                 MessageBox.Show("Success");
             }
         }
 
-        private void Button8_Click(object sender, EventArgs e) // open file
+        private void Button8_Click(object sender, EventArgs e) // load kill list
         {
-            OpenFileDialog openFile = new OpenFileDialog();
-            openFile.Filter = "Text (*.txt)|*.txt";
-            if (openFile.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            using (var dialog = new OpenFileDialog { Filter = ListFilter })
             {
-                List<string> lines = new List<string>();
-                using (var sr = new StreamReader(openFile.FileName, false))
+                if (dialog.ShowDialog() != DialogResult.OK)
                 {
-                    string line;
-                    while ((line = sr.ReadLine()) != null)
+                    return;
+                }
+
+                foreach (string line in File.ReadLines(dialog.FileName))
+                {
+                    if (line.Length > 0 && !listBox2.Items.Contains(line))
                     {
                         listBox2.Items.Add(line);
                     }
@@ -185,30 +178,31 @@ namespace FPS_Booster
             }
         }
 
-        private void TextBox2_TextChanged(object sender, EventArgs e)
+        // Search boxes: select every entry containing the typed text.
+
+        private static void SelectMatches(ListBox list, string query)
         {
-            listBox2.SelectedItems.Clear();  // clears list, only shows items with searched letter
-            for (int i = listBox2.Items.Count - 1; i >= 0; i--)
+            query = query.ToLowerInvariant();
+            list.BeginUpdate();
+            list.SelectedItems.Clear();
+            for (int i = list.Items.Count - 1; i >= 0; i--)
             {
-                if (listBox2.Items[i].ToString().ToLower().Contains(textBox2.Text)) // does so many things, but mainly adds the searched items back to he list
+                if (list.Items[i].ToString().ToLowerInvariant().Contains(query))
                 {
-                    listBox2.Sorted = true;
-                    listBox2.SetSelected(i, true);
+                    list.SetSelected(i, true);
                 }
             }
+            list.EndUpdate();
         }
 
         private void TextBox1_TextChanged(object sender, EventArgs e)
         {
-            listBox1.SelectedItems.Clear();  // clears list, only shows items with searched letter
-            for (int i = listBox1.Items.Count - 1; i >= 0; i--)
-            {
-                if (listBox1.Items[i].ToString().ToLower().Contains(textBox1.Text)) // does so many things, but mainly adds the searched items back to he list
-                {
-                    listBox1.Sorted = true;
-                    listBox1.SetSelected(i, true);
-                }
-            }
+            SelectMatches(listBox1, textBox1.Text);
+        }
+
+        private void TextBox2_TextChanged(object sender, EventArgs e)
+        {
+            SelectMatches(listBox2, textBox2.Text);
         }
     }
 }
